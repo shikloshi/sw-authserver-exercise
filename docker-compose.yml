@@ -1,0 +1,28 @@
+version: "3"
+services:
+    haproxy:
+        image: haproxy:1.8
+        ports:
+            - "8080:80"
+        networks:
+            - "authservernet"
+        volumes:
+            - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+        depends_on:
+            - replicate_service
+            - api_server
+    replicate_service:
+         build: ./replicate-service
+         hostname: replicate-service
+         networks: 
+            - "authservernet"
+    api_server:
+        build: ./api-server
+        networks: 
+            - "authservernet"
+        environment:
+            - BACKENDS=$${BACKENDS}
+
+networks: 
+    authservernet:
+
