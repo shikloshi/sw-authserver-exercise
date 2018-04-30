@@ -1,4 +1,4 @@
-#replicate-service
+# replicate-service
 
 This process is used for replicating an http request and sending it to multiple http server, it will return the first response returned by one of the backends back to the client.
 
@@ -23,4 +23,4 @@ Road map :)
 - [ ] backend healthchecks.
 - [ ] clean exit - signal all channels and flush all waiting jobs.
 - [ ] bug: wrong response when all backend failed to return ok response on first try.
-- [ ]command line flags using `flag` package (with env var default fallback).
+- [ ] command line flags using `flag` package (with env var default fallback).
