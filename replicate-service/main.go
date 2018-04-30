@@ -6,8 +6,13 @@ import (
 	"log"
 	"net/http"
 	"time"
+    //"expvar"
 
 	"github.com/caarlos0/env"
+)
+
+const (
+
 )
 
 var Config = struct {
@@ -54,18 +59,19 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
 		go sendRequestUpstream(req, backendAddr, responses)
 	}
 	// here we should only have a one size chan, the first one should insert, all others can drop and error should go to the bla bla
-	go sendFirstResponseToClient(w, responses, done)
+	go sendFirstResponseDownstream(w, responses, done)
 	<-done
 	// not closing to avoid panic with sending other responses
 	responses = nil
 }
 
-func sendFirstResponseToClient(w http.ResponseWriter, backendResponses chan *http.Response, done chan bool) {
+func sendFirstResponseDownstream(w http.ResponseWriter, backendResponses chan *http.Response, done chan bool) {
 	// send first response back to client
-	// for the rest we just close the
+	// for the rest we just need to close body
+    // wait to only one blah blah here
 	isFirstResponse := true
 	for resp := range backendResponses {
-		// assuming at least one response returned okay - for exc. sake
+        // assuming at least one response returned okay
 		if resp != nil {
 			if isFirstResponse {
 				log.Println("first response returned, writing back to client")
@@ -84,14 +90,23 @@ func sendFirstResponseToClient(w http.ResponseWriter, backendResponses chan *htt
 
 func sendRequestUpstream(req *http.Request, backendAddr string, responses chan *http.Response) {
 	log.Printf("Sending request to: [%s]", backendAddr)
-	newReq := copyRequest(req, backendAddr)
+	newReq, err := copyRequest(req, backendAddr)
+    if err != nil {
+        log.Printf("Could not copy request - %v\n", err)
+    }
 	//TODO: check new req nil
 	c := &http.Client{}
 	resp, err := c.Do(newReq)
 	if err != nil || resp.StatusCode < 200 || resp.StatusCode > 299 {
 		log.Printf("error from sending the request: %v, we are going to retry", err)
 		// For simplicty: retrying failed request for all errors (which might not be that good)
-		failedRequests <- copyRequest(newReq, backendAddr)
+        reqCopy, err := copyRequest(req, backendAddr)
+        if err != nil {
+            log.Error("Could not copy request - %v", err)
+        } else {
+            failedRequests <- copyRequest(newReq, backendAddr)
+        }
+        // close the body here
 	} else {
 		responses <- resp
 	}
@@ -120,13 +135,13 @@ func retryRequest(r *http.Request) {
 	}
 }
 
-func copyRequest(req *http.Request, backendAddr string) *http.Request {
+func copyRequest(req *http.Request, backendAddr string) (*http.Request, error) {
 	url := fmt.Sprintf("http://%s%s", backendAddr, req.RequestURI)
 	newReq, err := http.NewRequest(req.Method, url, req.Body)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	// Shallow copying the headers due to the fact we are not going to change them for now
 	newReq.Header = req.Header
-	return newReq
+	return newReq, nil
 }
