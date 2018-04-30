@@ -1,3 +1,11 @@
+#replicate-service
+
+This process is used for replicating an http request and sending it to multiple http server, it will return the first response returned by one of the backends back to the client.
+
+Config
+=================
+* 
+
 Road map :)
 ===================
 
