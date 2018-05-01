@@ -21,7 +21,7 @@ services:
         networks: 
             - "authservernet"
         environment:
-            - BACKENDS=$${BACKENDS}
+            - BACKENDS=${BACKENDS}
 
 networks: 
     authservernet:

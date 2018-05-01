@@ -11,7 +11,7 @@ Config
 * `INIT_RETRY_WAIT` - initial wait for retry with exponential backoff - time in ms.
 
 Metrics
-=============
+=============w
 Exposed via the go `expvar` package (can be "easily" instrumented with data-dog or prometheus):
 
 1. 
