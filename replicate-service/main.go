@@ -1,6 +1,7 @@
 package main
 
 import (
+	"expvar"
 	"flag"
 	"fmt"
 	"io"
@@ -8,7 +9,6 @@ import (
 	"net/http"
 	"strings"
 	"time"
-	//"expvar"
 
 	"github.com/caarlos0/env"
 )
@@ -20,6 +20,14 @@ var Config = struct {
 	RetryWorkersCount       int    `env:"RETRY_WORKERS_COUNT" envDefault:"10"`
 	InitialRetryWait        int    `env:"INIT_RETRY_WAIT" envDefault:"100"` // in ms
 }{}
+
+// metrics
+
+var (
+	retries                  = expvar.NewInt("retries")
+	incomingRequests         = expvar.NewInt("incoming_requests")
+	firstBackendResponseTime = expvar.NewInt("first_backend_response_time")
+)
 
 var failedRequests chan *http.Request
 var backendAddresses []string
@@ -49,11 +57,14 @@ func main() {
 
 func failedRequestsWorker(failedRequests chan *http.Request) {
 	for req := range failedRequests {
+		retries.Add(1)
 		retryRequest(req)
 	}
 }
 
 func handleRequest(w http.ResponseWriter, req *http.Request) {
+	start := time.Now()
+	incomingRequests.Add(1)
 	//responses := make(chan *http.Response, len(Config.Backends))
 	responses := make(chan *http.Response)
 	done := make(chan bool)
@@ -65,8 +76,11 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
 	// here we should only have a one size chan, the first one should insert, all others can drop and error should go to the bla bla
 	go sendFirstResponseDownstream(w, responses, done)
 	<-done
+	firstBackendResponseTime.Set(int64(time.Since(start)))
 	// not closing to avoid panic with sending other responses
 	responses = nil
+	//close(responses)
+	close(done)
 }
 
 func sendFirstResponseDownstream(w http.ResponseWriter, backendResponses chan *http.Response, done chan bool) {
@@ -74,21 +88,22 @@ func sendFirstResponseDownstream(w http.ResponseWriter, backendResponses chan *h
 	// for the rest we just need to close body
 	// wait to only one blah blah here
 	isFirstResponse := true
-	//for resp := range backendResponses {
-	resp := <-backendResponses
-	// assuming at least one response returned okay
-	if resp != nil {
-		if isFirstResponse {
-			log.Println("first response returned, writing back to client")
-			isFirstResponse = false
-			w.WriteHeader(http.StatusCreated)
-			w.Header().Set("Content-Type", resp.Header.Get("Content-Type"))
-			w.Header().Set("Content-Length", resp.Header.Get("Content-Length"))
-			// TODO: copy all response headers to frontend response
-			io.Copy(w, resp.Body)
-			done <- true
+	for resp := range backendResponses {
+		//resp := <-backendResponses
+		// assuming at least one response returned okay
+		if resp != nil {
+			if isFirstResponse {
+				log.Println("first response returned, writing back to client")
+				isFirstResponse = false
+				w.WriteHeader(http.StatusCreated)
+				w.Header().Set("Content-Type", resp.Header.Get("Content-Type"))
+				w.Header().Set("Content-Length", resp.Header.Get("Content-Length"))
+				// TODO: copy all response headers to frontend response
+				io.Copy(w, resp.Body)
+				done <- true
+			}
+			resp.Body.Close()
 		}
-		//resp.Body.Close()
 	}
 }
 
@@ -98,7 +113,6 @@ func sendRequestUpstream(req *http.Request, backendAddr string, responses chan *
 	if err != nil {
 		log.Printf("Could not copy request - %v\n", err)
 	}
-	//TODO: check new req nil
 	c := &http.Client{}
 	resp, err := c.Do(newReq)
 	if err != nil || resp.StatusCode < 200 || resp.StatusCode > 299 {
