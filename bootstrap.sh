@@ -10,7 +10,9 @@ api_server_port=8080
 # docker-compose use this as prefix for all running containers
 project_name=$(basename $PWD)
 
-for b in $(seq 1 $num_of_backends); do hosts="${hosts}${project_name}_$server_name_$b:${api_server_port},"; done
+for b in $(seq 1 $num_of_backends); do hosts="${hosts}${project_name}_${server_name}_$b:${api_server_port},"; done
+
+echo $hosts
 
 export BACKENDS=$(echo $hosts | sed 's/.$//')
 
@@ -22,7 +24,7 @@ echo "========================================"
 echo "Add this this to get_api_backend"
 for i in $(seq 1 $num_of_backends); 
 do
-    echo "server api$i ${project_name}_${server_name}$i:${api_server_port}"
+    echo "server api$i ${project_name}_${server_name}_$i:${api_server_port}"
 done
 echo "========================================"
 
