@@ -71,6 +71,7 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
 	// send copy of the requset to each configured backend
 	for _, backendAddr := range backendAddresses {
 		// getting lazy here: I'm not using channels that can cause some out of memory issues cuase number of goroutines are not bound
+		log.Printf("Sending request to: [%s]", backendAddr)
 		go sendRequestUpstream(req, backendAddr, responses)
 	}
 	// here we should only have a one size chan, the first one should insert, all others can drop and error should go to the bla bla
@@ -108,7 +109,6 @@ func sendFirstResponseDownstream(w http.ResponseWriter, backendResponses chan *h
 }
 
 func sendRequestUpstream(req *http.Request, backendAddr string, responses chan *http.Response) {
-	log.Printf("Sending request to: [%s]", backendAddr)
 	newReq, err := copyRequest(req, backendAddr)
 	if err != nil {
 		log.Printf("Could not copy request - %v\n", err)
@@ -124,7 +124,6 @@ func sendRequestUpstream(req *http.Request, backendAddr string, responses chan *
 		} else {
 			failedRequests <- reqCopy
 		}
-		// close the body here
 	} else {
 		select {
 		case responses <- resp:
@@ -140,16 +139,17 @@ func retryRequest(r *http.Request) {
 	wait := Config.InitialRetryWait
 	c := &http.Client{}
 	for i := 0; i < Config.MaxRetries; i++ {
-		// ignoring err her
 		resp, _ := c.Do(r)
 		if resp != nil && resp.StatusCode >= 200 && resp.StatusCode <= 299 {
 			log.Printf("Retry succeeded after: %d retries\n", i)
-			break
+			return
 		}
 		wait *= 2
 		log.Printf("Retry failed, waiting for: %d ms before retrying again\n", wait)
+		// I guess this could be done much better (non blocking) manner - with timer channel maybe..
 		time.Sleep(time.Duration(wait) * time.Millisecond)
 	}
+	log.Printf("Reached max retries (%d), stopping\n", Config.MaxRetries)
 }
 
 func copyRequest(req *http.Request, backendAddr string) (*http.Request, error) {

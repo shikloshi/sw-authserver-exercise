@@ -29,3 +29,4 @@ Road map :)
 - [ ] clean exit - signal all channels and flush all waiting jobs.
 - [ ] bug: wrong response when all backend failed to return ok response on first try.
 - [ ] command line flags using `flag` package (with env var default fallback).
+- [ ] better retry mechanism with a non-blocking semantics (instead of time.Sleep)
