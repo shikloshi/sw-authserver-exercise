@@ -1,4 +1,5 @@
 version: "3"
+
 services:
     haproxy:
         image: haproxy:1.8
@@ -16,12 +17,11 @@ services:
          hostname: replicate-service
          networks: 
             - "authservernet"
+         command: "-backends ${BACKENDS}"
     api_server:
         build: ./api-server
         networks: 
             - "authservernet"
-        environment:
-            - BACKENDS=${BACKENDS}
 
 networks: 
     authservernet:

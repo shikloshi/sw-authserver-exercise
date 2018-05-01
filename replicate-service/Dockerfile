@@ -8,4 +8,4 @@ WORKDIR /go/src/github.com/shikloshi/SimiliarWeb/app
 RUN go get
 RUN go build -o replicator
 
-CMD ["./replicator"]
+ENTRYPOINT ["./replicator"]
