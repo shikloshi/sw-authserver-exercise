@@ -1,11 +1,9 @@
 # Auth server excersise
 
 ## Architecture
-================
 ![design](https://github.com/shikloshi/sw-authserver-exercise/raw/master/architecture.png)
 
 ## Requierments
-================
 * Docker. developed and tested on:
 ```bash
 Docker version 17.12.0-ce, build c97c6d6
